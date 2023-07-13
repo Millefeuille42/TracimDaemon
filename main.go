@@ -96,6 +96,7 @@ func listenConnections() {
 func prepareTracimClient() *session.Session {
 	s := session.New(os.Getenv("TRACIM_URL"))
 	s.SetCredentials(session.Credentials{
+		Username: os.Getenv("TRACIM_USERNAME"),
 		Mail:     os.Getenv("TRACIM_MAIL"),
 		Password: os.Getenv("TRACIM_PASSWORD"),
 	})
