@@ -94,11 +94,11 @@ func listenConnections() {
 }
 
 func prepareTracimClient() *session.Session {
-	s := session.New(os.Getenv("TRACIM_URL"))
+	s := session.New(os.Getenv("TRACIM_DAEMON_TRACIM_URL"))
 	s.SetCredentials(session.Credentials{
-		Username: os.Getenv("TRACIM_USERNAME"),
-		Mail:     os.Getenv("TRACIM_MAIL"),
-		Password: os.Getenv("TRACIM_PASSWORD"),
+		Username: os.Getenv("TRACIM_DAEMON_TRACIM_USERNAME"),
+		Mail:     os.Getenv("TRACIM_DAEMON_TRACIM_MAIL"),
+		Password: os.Getenv("TRACIM_DAEMON_TRACIM_PASSWORD"),
 	})
 
 	err := s.Auth()
@@ -115,7 +115,7 @@ func prepareTracimClient() *session.Session {
 }
 
 func main() {
-	socketPath = os.Getenv("TRACIM_SOCKET_PATH")
+	socketPath = os.Getenv("TRACIM_DAEMON_SOCKET_PATH")
 	handleSigTerm()
 
 	var err error
@@ -129,5 +129,5 @@ func main() {
 	go listenConnections()
 
 	s := prepareTracimClient()
-	s.ListenEvents(os.Getenv("TRACIM_USER_ID"))
+	s.ListenEvents()
 }
