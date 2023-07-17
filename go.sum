@@ -1,4 +1,4 @@
-github.com/Millefeuille42/TracimAPI v0.0.0-20230713164658-d35dbe50fb79 h1:R1pOv3wM1hSmvJFz+h2EJarbcjALFl6pRUIReXUhHqo=
-github.com/Millefeuille42/TracimAPI v0.0.0-20230713164658-d35dbe50fb79/go.mod h1:pBEQ8eOWV6tWGDiMFa+eYpYZ35WtVerut6MuTs63+UA=
-github.com/Millefeuille42/TracimDaemonSDK v0.0.0-20230713165014-1e00aaeac999 h1:G8NtqJaAGHh8dtQYCGHwSdMCrdL/44cW1qW5nC+/aps=
-github.com/Millefeuille42/TracimDaemonSDK v0.0.0-20230713165014-1e00aaeac999/go.mod h1:px3xY/zpDgM3GXMYm+cJsUfveGvyxLVIjltxp+K0NbQ=
+github.com/Millefeuille42/TracimAPI v0.0.0-20230713180902-119b1fedadec h1:B6AGTSLHP6fkBQTfqb2ZjMdX258T8+macWQQcMvhiJc=
+github.com/Millefeuille42/TracimAPI v0.0.0-20230713180902-119b1fedadec/go.mod h1:pBEQ8eOWV6tWGDiMFa+eYpYZ35WtVerut6MuTs63+UA=
+github.com/Millefeuille42/TracimDaemonSDK v0.0.0-20230717142610-c7b0e913ae9e h1:CZvi/uc7r7t8xNBjRjS9jjkJgKbsUl9gkj7exYpOlZs=
+github.com/Millefeuille42/TracimDaemonSDK v0.0.0-20230717142610-c7b0e913ae9e/go.mod h1:px3xY/zpDgM3GXMYm+cJsUfveGvyxLVIjltxp+K0NbQ=
