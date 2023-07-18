@@ -8,44 +8,68 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 )
+
+type daemonConnection struct {
+	path    string
+	isAlive bool
+}
 
 var socketPath string
 var socket net.Listener
-var connections = make([]string, 0)
+var connections = make([]daemonConnection, 0)
+var userId = ""
+var connectionsMutex = sync.Mutex{}
 
-func removeConnection(slice []string, element string) []string {
-	for i, c := range connections {
-		if c == element {
-			return append(slice[:i], slice[i+1:]...)
+func sendPings() {
+	connectionsMutex.Lock()
+	newConnections := connections
+	for _, conn := range newConnections {
+		if !conn.isAlive {
+			removeConnection(newConnections, conn.path)
+		}
+		log.Printf("PING: Removed %s due to inactivty", conn.path)
+	}
+	connections = newConnections
+	for i, conn := range connections {
+		connections[i].isAlive = false
+		err := sendDaemonEvent(conn.path, &TracimDaemonSDK.DaemonEvent{
+			Path:   socketPath,
+			Action: TracimDaemonSDK.DaemonPing,
+			Data:   nil,
+		})
+		if err != nil {
+			log.Print(err)
 		}
 	}
-	return slice
+	connectionsMutex.Unlock()
 }
 
 func connectedHandler(s *session.Session, TLM *session.TracimLiveMessage) {
-	log.Print("Connected")
+	log.Print("TRACIM: Connected")
 }
 
 func messageHandler(s *session.Session, TLM *session.TracimLiveMessage) {
-	log.Printf("Received event: %s\n", TLM.DataParsed.EventType)
-	for _, connPath := range connections {
-		conn, err := net.Dial("unix", connPath)
+	log.Printf("TRACIM: RECV: %s\n", TLM.DataParsed.EventType)
+	connectionsMutex.Lock()
+	for _, connData := range connections {
+		err := sendDaemonEvent(connData.path, &TracimDaemonSDK.DaemonEvent{
+			Path:   socketPath,
+			Action: TracimDaemonSDK.DaemonTracimEvent,
+			Data:   TLM.Data,
+		})
 		if err != nil {
 			log.Print(err)
-			continue
 		}
-		_, err = conn.Write([]byte(TLM.Data))
-		if err != nil {
-			log.Print(err)
-		}
-		conn.Close()
 	}
+	connectionsMutex.Unlock()
 }
 
 func errorHandler(s *session.Session, TLM *session.TracimLiveMessage) {
-	log.Print("Error: " + TLM.Data)
+	log.Print("TRACIM: ERROR: " + TLM.Data)
 }
 
 func handleSigTerm() {
@@ -58,6 +82,17 @@ func handleSigTerm() {
 	}()
 }
 
+func startPingRoutine() {
+	pingTicker := time.NewTicker(time.Second * 30)
+	defer pingTicker.Stop()
+	for {
+		select {
+		case <-pingTicker.C:
+			sendPings()
+		}
+	}
+}
+
 func listenConnections() {
 	for {
 		conn, err := socket.Accept()
@@ -65,7 +100,6 @@ func listenConnections() {
 			log.Print(err)
 			continue
 		}
-
 		go func(conn net.Conn) {
 			defer conn.Close()
 			buf := make([]byte, 4096)
@@ -75,19 +109,27 @@ func listenConnections() {
 				log.Print(err)
 				return
 			}
-			log.Printf("SOCKET: %s\n", buf[:n])
-			message := TracimDaemonSDK.DaemonSubscriptionEvent{}
+			message := TracimDaemonSDK.DaemonEvent{}
 			err = json.Unmarshal(buf[:n], &message)
 			if err != nil {
 				log.Print(err)
 				return
 			}
 
+			log.Printf("SOCKET: RECV: %s -> %s\n", message.Action, message.Path)
+
 			switch message.Action {
 			case TracimDaemonSDK.DaemonSubscriptionActionAdd:
-				connections = append(connections, message.Path)
+				subscriptionActionAddHandler(&message)
 			case TracimDaemonSDK.DaemonSubscriptionActionDelete:
-				connections = removeConnection(connections, message.Path)
+				subscriptionActionDeleteHandler(&message)
+			case TracimDaemonSDK.DaemonPing:
+				pingHandler(&message)
+			case TracimDaemonSDK.DaemonPong:
+				pongHandler(&message)
+			case TracimDaemonSDK.DaemonAck:
+			default:
+				ackHandler(&message)
 			}
 		}(conn)
 	}
@@ -130,5 +172,8 @@ func main() {
 	go listenConnections()
 
 	s := prepareTracimClient()
+	userId = s.UserID
+
+	go startPingRoutine()
 	s.ListenEvents()
 }
