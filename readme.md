@@ -31,4 +31,4 @@ Then, TracimDaemon will send them events as they come.
 
 ## Creating a plugin
 
-See [TracimDaemonSDK](https://github.com/Millefeuille42/TracimPushNotification) for information on how to create a plugin.
+See [TracimDaemonSDK](https://github.com/Millefeuille42/TracimDaemonSDK) for information on how to create a plugin.
