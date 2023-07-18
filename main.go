@@ -118,6 +118,7 @@ func main() {
 	socketPath = os.Getenv("TRACIM_DAEMON_SOCKET_PATH")
 	handleSigTerm()
 
+	_ = os.Remove(socketPath)
 	var err error
 	socket, err = net.Listen("unix", socketPath)
 	if err != nil {
