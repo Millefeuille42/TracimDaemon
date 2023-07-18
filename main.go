@@ -26,14 +26,13 @@ var connectionsMutex = sync.Mutex{}
 
 func sendPings() {
 	connectionsMutex.Lock()
-	newConnections := connections
-	for _, conn := range newConnections {
+	oldConnections := connections
+	for _, conn := range oldConnections {
 		if !conn.isAlive {
-			removeConnection(newConnections, conn.path)
+			removeConnection(connections, conn.path)
+			log.Printf("PING: Removed %s due to inactivty", conn.path)
 		}
-		log.Printf("PING: Removed %s due to inactivty", conn.path)
 	}
-	connections = newConnections
 	for i, conn := range connections {
 		connections[i].isAlive = false
 		err := sendDaemonEvent(conn.path, &TracimDaemonSDK.DaemonEvent{
