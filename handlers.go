@@ -5,48 +5,57 @@ import (
 	"log"
 )
 
-func ackHandler(message *TracimDaemonSDK.DaemonEvent) {
-	err := sendDaemonEvent(message.Path, &TracimDaemonSDK.DaemonEvent{
-		Path:   socketPath,
-		Action: TracimDaemonSDK.DaemonAck,
-		Data:   nil,
+func ackHandler(event *TracimDaemonSDK.DaemonEvent) {
+	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonAck,
+		Data: nil,
 	})
 	if err != nil {
 		log.Print(err)
 	}
 }
 
-func subscriptionActionAddHandler(message *TracimDaemonSDK.DaemonEvent) {
+func clientAddHandler(event *TracimDaemonSDK.DaemonEvent) {
+	err := TracimDaemonSDK.ParseDaemonData(event, &TracimDaemonSDK.DaemonClientData{})
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
 	connectionsMutex.Lock()
 	connections = append(connections, daemonConnection{
-		path:    message.Path,
-		isAlive: true,
+		DaemonClientData: *event.Data.(*TracimDaemonSDK.DaemonClientData),
+		isAlive:          true,
 	})
 	connectionsMutex.Unlock()
 
-	err := sendDaemonEvent(message.Path, &TracimDaemonSDK.DaemonEvent{
-		Path:   socketPath,
-		Action: TracimDaemonSDK.DaemonAccountInfo,
-		Data:   userId,
-	})
+	getAccountInfoHandler(event)
 
-	if err != nil {
-		log.Print(err)
-	}
+	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonClientAdded,
+		Data: event.Data,
+	})
 }
 
-func subscriptionActionDeleteHandler(message *TracimDaemonSDK.DaemonEvent) {
+func clientDeleteHandler(event *TracimDaemonSDK.DaemonEvent) {
 	connectionsMutex.Lock()
-	connections = removeConnection(connections, message.Path)
+	connections = removeConnection(connections, event.Path)
 	connectionsMutex.Unlock()
-	ackHandler(message)
+
+	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonClientDeleted,
+		Data: event.Data,
+	})
 }
 
-func pingHandler(message *TracimDaemonSDK.DaemonEvent) {
-	err := sendDaemonEvent(message.Path, &TracimDaemonSDK.DaemonEvent{
-		Path:   socketPath,
-		Action: TracimDaemonSDK.DaemonPong,
-		Data:   nil,
+func pingHandler(event *TracimDaemonSDK.DaemonEvent) {
+	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonPong,
+		Data: nil,
 	})
 
 	if err != nil {
@@ -54,14 +63,70 @@ func pingHandler(message *TracimDaemonSDK.DaemonEvent) {
 	}
 }
 
-func pongHandler(message *TracimDaemonSDK.DaemonEvent) {
+func pongHandler(event *TracimDaemonSDK.DaemonEvent) {
 	connectionsMutex.Lock()
 	for i, conn := range connections {
-		if conn.path == message.Path {
+		if conn.Path == event.Path {
 			connections[i].isAlive = true
 			break
 		}
 	}
 	connectionsMutex.Unlock()
-	ackHandler(message)
+	ackHandler(event)
+}
+
+func getClientsHandler(event *TracimDaemonSDK.DaemonEvent) {
+	connectionsMutex.Lock()
+	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonClients,
+		Data: connections,
+	})
+	connectionsMutex.Unlock()
+
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func doRequestHandler(event *TracimDaemonSDK.DaemonEvent) {
+	err := TracimDaemonSDK.ParseDaemonData(event, &TracimDaemonSDK.DaemonDoRequestData{})
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	data := event.Data.(*TracimDaemonSDK.DaemonDoRequestData)
+	response, err := s.Request(data.Method, data.Endpoint, data.Body)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	err = sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonRequestResult,
+		Data: TracimDaemonSDK.DaemonRequestResultData{
+			Request:    *data,
+			StatusCode: response.StatusCode,
+			Status:     response.Status,
+			Data:       response.DataBytes,
+		},
+	})
+
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func getAccountInfoHandler(event *TracimDaemonSDK.DaemonEvent) {
+	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
+		Path: socketPath,
+		Type: TracimDaemonSDK.DaemonAccountInfo,
+		Data: TracimDaemonSDK.DaemonAccountInfoData{UserId: s.UserID},
+	})
+
+	if err != nil {
+		log.Print(err)
+	}
 }

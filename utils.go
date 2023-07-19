@@ -23,14 +23,14 @@ func sendDaemonEvent(path string, event *TracimDaemonSDK.DaemonEvent) error {
 		return err
 	}
 
-	log.Printf("SOCKET: SEND: %s -> %s", event.Action, path)
+	log.Printf("SOCKET: SEND: %s -> %s", event.Type, path)
 
 	return sendMessageToSocket(path, data)
 }
 
 func removeConnection(slice []daemonConnection, elementPath string) []daemonConnection {
 	for i, c := range slice {
-		if c.path == elementPath {
+		if c.Path == elementPath {
 			return append(slice[:i], slice[i+1:]...)
 		}
 	}
