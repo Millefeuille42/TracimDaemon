@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 type tracimConfiguration struct {
@@ -78,7 +79,7 @@ func getConfigDir() (string, error) {
 	var dir = ""
 	var err error = nil
 
-	if len(os.Args) > 1 {
+	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-p") {
 		dir = os.Args[1]
 	} else {
 		dir, err = os.UserConfigDir()
@@ -102,6 +103,7 @@ func readConfigFromFile() (*configuration, error) {
 	}
 
 	path := fmt.Sprintf("%s/TracimDaemon/", dir)
+	configDir = path
 	err = createDirIfNotExist(path)
 	if err != nil {
 		return nil, err
@@ -114,6 +116,11 @@ func readConfigFromFile() (*configuration, error) {
 
 	if !exist {
 		return createDefaultConfig(path)
+	}
+
+	err = createDirIfNotExist(path + "log")
+	if err != nil {
+		return nil, err
 	}
 
 	configBytes, err := os.ReadFile(path + "config.json")
@@ -136,3 +143,4 @@ func setGlobalConfig() {
 }
 
 var globalConfig configuration
+var configDir string

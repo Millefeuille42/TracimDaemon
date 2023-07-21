@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/Millefeuille42/Daemonize"
 	"github.com/Millefeuille42/TracimDaemonSDK"
-	"log"
 	"net"
 )
 
@@ -23,7 +24,7 @@ func sendDaemonEvent(path string, event *TracimDaemonSDK.DaemonEvent) error {
 		return err
 	}
 
-	log.Printf("SOCKET: SEND: %s -> %s", event.Type, path)
+	safeLog(Daemonize.LOG_INFO, fmt.Sprintf("SOCKET: SEND: %s -> %s", event.Type, path))
 
 	return sendMessageToSocket(path, data)
 }

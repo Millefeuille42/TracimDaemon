@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/Millefeuille42/Daemonize"
 	"github.com/Millefeuille42/TracimDaemonSDK"
-	"log"
 )
 
 func ackHandler(event *TracimDaemonSDK.DaemonEvent) {
@@ -12,14 +12,14 @@ func ackHandler(event *TracimDaemonSDK.DaemonEvent) {
 		Data: nil,
 	})
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 	}
 }
 
 func clientAddHandler(event *TracimDaemonSDK.DaemonEvent) {
 	err := TracimDaemonSDK.ParseDaemonData(event, &TracimDaemonSDK.DaemonClientData{})
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 		return
 	}
 
@@ -59,7 +59,7 @@ func pingHandler(event *TracimDaemonSDK.DaemonEvent) {
 	})
 
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 	}
 }
 
@@ -85,21 +85,21 @@ func getClientsHandler(event *TracimDaemonSDK.DaemonEvent) {
 	connectionsMutex.Unlock()
 
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 	}
 }
 
 func doRequestHandler(event *TracimDaemonSDK.DaemonEvent) {
 	err := TracimDaemonSDK.ParseDaemonData(event, &TracimDaemonSDK.DaemonDoRequestData{})
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 		return
 	}
 
 	data := event.Data.(*TracimDaemonSDK.DaemonDoRequestData)
 	response, err := s.Request(data.Method, data.Endpoint, data.Body)
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func doRequestHandler(event *TracimDaemonSDK.DaemonEvent) {
 	})
 
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 	}
 }
 
@@ -127,6 +127,6 @@ func getAccountInfoHandler(event *TracimDaemonSDK.DaemonEvent) {
 	})
 
 	if err != nil {
-		log.Print(err)
+		safeLog(Daemonize.LOG_ERR, err)
 	}
 }

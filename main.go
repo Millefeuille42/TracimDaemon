@@ -2,14 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/Millefeuille42/Daemonize"
 	"github.com/Millefeuille42/TracimAPI/session"
 	"github.com/Millefeuille42/TracimDaemonSDK"
 	"log"
 	"net"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -20,15 +20,28 @@ type daemonConnection struct {
 
 var socket net.Listener
 var connections = make([]daemonConnection, 0)
-var connectionsMutex = sync.Mutex{}
 var s *session.Session
+var daemonizer *Daemonize.Daemonizer = nil
+
+var connectionsMutex = sync.Mutex{}
+var logMutex = sync.Mutex{}
+
+func safeLog(severity Daemonize.Severity, v ...any) {
+	logMutex.Lock()
+	defer logMutex.Unlock()
+	if daemonizer == nil {
+		log.Print(v...)
+		return
+	}
+	daemonizer.Log(severity, v...)
+}
 
 func broadcastDaemonEvent(e *TracimDaemonSDK.DaemonEvent) {
 	connectionsMutex.Lock()
 	for _, connData := range connections {
 		err := sendDaemonEvent(connData.Path, e)
 		if err != nil {
-			log.Print(err)
+			safeLog(Daemonize.LOG_ERR, err)
 		}
 	}
 	connectionsMutex.Unlock()
@@ -40,7 +53,7 @@ func sendPings() {
 	for _, conn := range oldConnections {
 		if !conn.isAlive {
 			removeConnection(connections, conn.Path)
-			log.Printf("PING: Removed %s due to inactivty", conn.Path)
+			safeLog(Daemonize.LOG_INFO, fmt.Sprintf("PING: Removed %s due to inactivty", conn.Path))
 		}
 	}
 	for i := range connections {
@@ -56,11 +69,11 @@ func sendPings() {
 }
 
 func connectedHandler(s *session.Session, TLM *session.TracimLiveMessage) {
-	log.Print("TRACIM: Connected")
+	safeLog(Daemonize.LOG_INFO, "TRACIM: Connected")
 }
 
 func messageHandler(s *session.Session, TLM *session.TracimLiveMessage) {
-	log.Printf("TRACIM: RECV: %s\n", TLM.DataParsed.EventType)
+	safeLog(Daemonize.LOG_INFO, fmt.Sprintf("TRACIM: RECV: %s\n", TLM.DataParsed.EventType))
 	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
 		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonTracimEvent,
@@ -69,17 +82,7 @@ func messageHandler(s *session.Session, TLM *session.TracimLiveMessage) {
 }
 
 func errorHandler(s *session.Session, TLM *session.TracimLiveMessage) {
-	log.Print("TRACIM: ERROR: " + TLM.Data)
-}
-
-func handleSigTerm() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		_ = os.Remove(globalConfig.SocketPath)
-		os.Exit(1)
-	}()
+	safeLog(Daemonize.LOG_ERR, "TRACIM: ERROR: "+TLM.Data)
 }
 
 func startPingRoutine() {
@@ -97,7 +100,7 @@ func listenConnections() {
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
-			log.Print(err)
+			safeLog(Daemonize.LOG_ERR, err)
 			continue
 		}
 		go func(conn net.Conn) {
@@ -106,17 +109,17 @@ func listenConnections() {
 
 			n, err := conn.Read(buf)
 			if err != nil {
-				log.Print(err)
+				safeLog(Daemonize.LOG_ERR, err)
 				return
 			}
 			message := TracimDaemonSDK.DaemonEvent{}
 			err = json.Unmarshal(buf[:n], &message)
 			if err != nil {
-				log.Print(err)
+				safeLog(Daemonize.LOG_ERR, err)
 				return
 			}
 
-			log.Printf("SOCKET: RECV: %s -> %s\n", message.Type, message.Path)
+			safeLog(Daemonize.LOG_INFO, fmt.Sprintf("SOCKET: RECV: %s -> %s\n", message.Type, message.Path))
 
 			switch message.Type {
 			case TracimDaemonSDK.DaemonClientAdd:
@@ -151,8 +154,8 @@ func prepareTracimClient() *session.Session {
 
 	err := s.Auth()
 	if err != nil {
-		log.Fatal(err)
-		return nil
+		safeLog(Daemonize.LOG_EMERG, err)
+		os.Exit(1)
 	}
 
 	s.TLMSubscribe(session.TLMError, errorHandler)
@@ -162,11 +165,11 @@ func prepareTracimClient() *session.Session {
 	return s
 }
 
-func main() {
-	setGlobalConfig()
-	handleSigTerm()
-
+func startProcess() {
+	safeLog(Daemonize.LOG_INFO, "Started")
+	defer os.Remove(globalConfig.SocketPath)
 	_ = os.Remove(globalConfig.SocketPath)
+
 	var err error
 	socket, err = net.Listen("unix", globalConfig.SocketPath)
 	if err != nil {
@@ -181,4 +184,39 @@ func main() {
 
 	go startPingRoutine()
 	s.ListenEvents()
+}
+
+func main() {
+	setGlobalConfig()
+
+	if len(os.Args) > 1 && os.Args[1] == "-p" {
+		startProcess()
+		os.Exit(0)
+	}
+
+	var err error = nil
+	daemonizer, err = Daemonize.NewDaemonizer()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer daemonizer.Close()
+
+	pid, err := daemonizer.Daemonize(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if pid != 0 {
+		log.Print(pid)
+		os.Exit(0)
+	}
+
+	pattern := fmt.Sprintf("master_%s_*.log", time.Now().Format(time.RFC3339))
+	err = daemonizer.AddTempFileLogger(configDir+"log", pattern, os.Args[0], log.LstdFlags)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	startProcess()
 }

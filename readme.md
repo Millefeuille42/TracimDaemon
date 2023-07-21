@@ -37,7 +37,7 @@ TracimDaemon is configured via a json configuration file, it is composed as foll
     "mail": "me@example.com",
     "password": "S3crƎtP4s$woRd"
   },
-  "socket_path": "/relative/path/to/sock"
+  "socket_path": "/path/to/sock"
 }
 ```
 
@@ -46,7 +46,7 @@ TracimDaemon is configured via a json configuration file, it is composed as foll
   - `username`: Username of the tracim user, if required
   - `mail`: Email address of the tracim user, if required
   - `password`: Password of the tracim user
-- `socket_path`: Relative path to the socket file from `dir`
+- `socket_path`: Path to the socket file
 
 ### Runtime
 
