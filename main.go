@@ -18,7 +18,6 @@ type daemonConnection struct {
 	isAlive bool
 }
 
-var socketPath string
 var socket net.Listener
 var connections = make([]daemonConnection, 0)
 var connectionsMutex = sync.Mutex{}
@@ -50,7 +49,7 @@ func sendPings() {
 	connectionsMutex.Unlock()
 
 	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonPing,
 		Data: nil,
 	})
@@ -63,7 +62,7 @@ func connectedHandler(s *session.Session, TLM *session.TracimLiveMessage) {
 func messageHandler(s *session.Session, TLM *session.TracimLiveMessage) {
 	log.Printf("TRACIM: RECV: %s\n", TLM.DataParsed.EventType)
 	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonTracimEvent,
 		Data: TLM.Data,
 	})
@@ -78,7 +77,7 @@ func handleSigTerm() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		_ = os.Remove(socketPath)
+		_ = os.Remove(globalConfig.SocketPath)
 		os.Exit(1)
 	}()
 }
@@ -143,11 +142,11 @@ func listenConnections() {
 }
 
 func prepareTracimClient() *session.Session {
-	s = session.New(os.Getenv("TRACIM_DAEMON_TRACIM_URL"))
+	s = session.New(globalConfig.Tracim.Url)
 	s.SetCredentials(session.Credentials{
-		Username: os.Getenv("TRACIM_DAEMON_TRACIM_USERNAME"),
-		Mail:     os.Getenv("TRACIM_DAEMON_TRACIM_MAIL"),
-		Password: os.Getenv("TRACIM_DAEMON_TRACIM_PASSWORD"),
+		Username: globalConfig.Tracim.Username,
+		Mail:     globalConfig.Tracim.Mail,
+		Password: globalConfig.Tracim.Password,
 	})
 
 	err := s.Auth()
@@ -164,12 +163,12 @@ func prepareTracimClient() *session.Session {
 }
 
 func main() {
-	socketPath = os.Getenv("TRACIM_DAEMON_SOCKET_PATH")
+	setGlobalConfig()
 	handleSigTerm()
 
-	_ = os.Remove(socketPath)
+	_ = os.Remove(globalConfig.SocketPath)
 	var err error
-	socket, err = net.Listen("unix", socketPath)
+	socket, err = net.Listen("unix", globalConfig.SocketPath)
 	if err != nil {
 		log.Fatal(err)
 		return

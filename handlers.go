@@ -7,7 +7,7 @@ import (
 
 func ackHandler(event *TracimDaemonSDK.DaemonEvent) {
 	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonAck,
 		Data: nil,
 	})
@@ -33,7 +33,7 @@ func clientAddHandler(event *TracimDaemonSDK.DaemonEvent) {
 	getAccountInfoHandler(event)
 
 	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonClientAdded,
 		Data: event.Data,
 	})
@@ -45,7 +45,7 @@ func clientDeleteHandler(event *TracimDaemonSDK.DaemonEvent) {
 	connectionsMutex.Unlock()
 
 	broadcastDaemonEvent(&TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonClientDeleted,
 		Data: event.Data,
 	})
@@ -53,7 +53,7 @@ func clientDeleteHandler(event *TracimDaemonSDK.DaemonEvent) {
 
 func pingHandler(event *TracimDaemonSDK.DaemonEvent) {
 	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonPong,
 		Data: nil,
 	})
@@ -78,7 +78,7 @@ func pongHandler(event *TracimDaemonSDK.DaemonEvent) {
 func getClientsHandler(event *TracimDaemonSDK.DaemonEvent) {
 	connectionsMutex.Lock()
 	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonClients,
 		Data: connections,
 	})
@@ -104,7 +104,7 @@ func doRequestHandler(event *TracimDaemonSDK.DaemonEvent) {
 	}
 
 	err = sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonRequestResult,
 		Data: TracimDaemonSDK.DaemonRequestResultData{
 			Request:    *data,
@@ -121,7 +121,7 @@ func doRequestHandler(event *TracimDaemonSDK.DaemonEvent) {
 
 func getAccountInfoHandler(event *TracimDaemonSDK.DaemonEvent) {
 	err := sendDaemonEvent(event.Path, &TracimDaemonSDK.DaemonEvent{
-		Path: socketPath,
+		Path: globalConfig.SocketPath,
 		Type: TracimDaemonSDK.DaemonAccountInfo,
 		Data: TracimDaemonSDK.DaemonAccountInfoData{UserId: s.UserID},
 	})

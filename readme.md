@@ -6,19 +6,47 @@ A master daemon for the TracimDaemon project
 
 - Event based system
 - "Local" Tracim event API
-- (WIP) "Local" Tracim API
+- "Local" Tracim API
 
 ## Usage
 
 ### Configuration
 
-TracimDaemon is configured via environment variables.
+TracimDaemon will try to get a path to a config folder from the following selectors in order:
 
-- `TRACIM_DAEMON_TRACIM_URL`: URL of the Tracim server
-- `TRACIM_DAEMON_TRACIM_MAIL`: If required by the Tracim server, the mail of the Tracim user
-- `TRACIM_DAEMON_TRACIM_USERNAME`: If required by the Tracim server, the username of the Tracim user
-- `TRACIM_DAEMON_TRACIM_PASSWORD`: The password of the Tracim user
-- `TRACIM_DAEMON_SOCKET_PATH`: Path to the socket file
+- First program argument
+- User's config folder
+- User's home folder + `.config/`
+
+The selector fails if the element is not provided, by the user in the case of the `1st Argument` selector,
+by the system in the case of the two others.
+
+From now on the config folder will be referenced as `dir`.
+
+TracimDaemon will the try to read the `dir/TracimDaemon`, if it does not exist, il will create it
+along with a default config file and notification folder.
+
+
+TracimDaemon is configured via a json configuration file, it is composed as follows:
+
+```json
+{
+  "tracim": {
+    "url": "http://localhost:8080/api",
+    "username": "Me",
+    "mail": "me@example.com",
+    "password": "S3crƎtP4s$woRd"
+  },
+  "socket_path": "/relative/path/to/sock"
+}
+```
+
+- `tracim`: Information about the tracim server and user
+  - `url`: URL of the tracim server, including the `api` route
+  - `username`: Username of the tracim user, if required
+  - `mail`: Email address of the tracim user, if required
+  - `password`: Password of the tracim user
+- `socket_path`: Relative path to the socket file from `dir`
 
 ### Runtime
 
