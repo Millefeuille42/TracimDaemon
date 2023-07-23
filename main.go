@@ -52,7 +52,7 @@ func sendPings() {
 	oldConnections := connections
 	for _, conn := range oldConnections {
 		if !conn.isAlive {
-			removeConnection(connections, conn.Path)
+			connections = removeConnection(connections, conn.Path)
 			safeLog(Daemonize.LOG_INFO, fmt.Sprintf("PING: Removed %s due to inactivty", conn.Path))
 		}
 	}
