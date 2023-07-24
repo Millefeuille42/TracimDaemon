@@ -24,6 +24,15 @@ func clientAddHandler(event *TracimDaemonSDK.DaemonEvent) {
 	}
 
 	connectionsMutex.Lock()
+	for i, conn := range connections {
+		if conn.Path == event.Data.(*TracimDaemonSDK.DaemonClientData).Path {
+			connections[i].isAlive = true
+			connections[i].DaemonClientData = *event.Data.(*TracimDaemonSDK.DaemonClientData)
+			connectionsMutex.Unlock()
+			getAccountInfoHandler(event)
+			return
+		}
+	}
 	connections = append(connections, daemonConnection{
 		DaemonClientData: *event.Data.(*TracimDaemonSDK.DaemonClientData),
 		isAlive:          true,
